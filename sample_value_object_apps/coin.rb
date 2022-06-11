@@ -1,0 +1,4 @@
+class Coin
+  ONE_HUNDRED_YEN = 100
+  FIVE_HUNDRED_YEN = 500
+end
