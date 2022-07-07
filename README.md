@@ -4,5 +4,6 @@
 ## **multiple_imputation** : 好きな数字の好きな倍数を計算できる
 
 ## **api_sample_code** : webAPIを使用したサンプルコード群
+## js_lesson : javascriptの練習サンプルコード群
 ## **sample_value_object_apps** : value_objectの練習
 ## **test_code** : 組み込みメソッド等の練習場所
