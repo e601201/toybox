@@ -34,7 +34,7 @@ const quize = [
 const quizeLength = quize.length;
 let quizeIndex = 0;
 let score = 0;
-
+//$マークの意味: HTMLのオブジェクトを取ってくる場合
 const $buttons = document.getElementsByTagName('button');
 const buttonLength = $buttons.length;
 
