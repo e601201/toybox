@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!--media pipe: 手の骨格取得や認識結果の描画に使用-->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+  <!--opencv.js: 手の傾きや中心位置を計算するために使用-->
+  <script src="https://docs.opencv.org/3.4.1/opencv.js"></script>
+
+  <!--今回のハンズオンで行う処理を記述-->
+  <script type="text/javascript">
+    //変数宣言
+    let canvasElement;
+    let canvasCtx; //キャンバスコンテキスト、キャンバス描画に関する
+    let beam; //ライトセイバーの画像
+    let ell; //楕円(ellipse)の変数
+    let ratio; //親指の開き具合を保持　比率（ratio)
+    
+    //初期化
+    //window.onload ページを呼び出す準備ができたら呼び出される
+    window.onload = function() {
+      //ビデオ要素の取得
+      beam = document.getElementById('beam'); //<img id="beam"...
+      let videoElement = document.getElementById('input_video');
+      //表示用のCanvasを取得
+      canvasElement = document.getElementById('output_canvas');
+      //Canvas描画に関する情報にアクセス　これでお絵描きができる！！
+      canvasCtx = canvasElement.getContext('2d');
+      
+      //HandTrackingを使用するための関連ファイルの取得と初期化
+      const hands = new Hands({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
+      }});
+      //手の認識に関するオプション
+      hands.setOptions({
+        selfieMode:true,
+        maxNumHands: 2, //認識可能な手の最大数
+        modelComplexity: 1,//精度に関する設定(0~1)
+        
+        minDetectionConfidence: 0.5,//手検出の信頼度 これが手かどうか判断する(0~1) 現在は50%の確率なら表示する設定
+        minTrackingConfidence: 0.5,//手追跡の信頼度
+        
+        useCpuInference: false, //M1 MacのSafariの場合はtrue GPUを使うかどうかの設定（trueだと重くなる）
+      });
+      //mediapipeのハンドトラッキングの処理完了
+      
+      //結果を処理する関数を登録 結果が返ってきたタイミングで実行(onResults)
+      hands.onResults(recvResults);
+      
+      //カメラの初期化　引数でvideoElementを渡す
+      const camera = new Camera(videoElement, {
+        onFrame: async () => {
+          //カメラの画像を用いて手の検出を実行　videoelementの画像をmediapipeに渡す
+          await hands.send({image: videoElement});
+        },
+        //画像サイズを設定
+        width: 1280, height: 720
+      });
+      //カメラの動作開始
+      camera.start();
+    };
+    //手の検出結果を利用する 認識結果の利用 recv→receive
+    function recvResults(results) {   
+      //実際のカメラの横縦の幅を取得
+      let width=results.image.width;
+      let height=results.image.height;
+      
+      //画像のサイズとcanvasのサイズが異なる場合はサイズを調整
+      if(width!=canvasElement.width){
+        //入力画像と同じサイズのcanvas(描画領域)を用意
+        canvasElement.width=width;
+        canvasElement.height=height;
+      }
+      //以下、canvasへの描画に関する記述 saveとrestoreの間に記述
+      canvasCtx.save();
+      //画像を表示
+      //(results.image, スタートのx軸, スタートのY軸, width, height)
+      canvasCtx.drawImage(results.image, 0, 0, width, height); 
+      //multiHandLandmarks手の関節など、つまり手を認識しているかどうかを判断する
+      if (results.multiHandLandmarks) {        
+        //見つけた手の数だけ処理を繰り返す: landmarks of results.multiHandLandmarks
+        for (const landmarks of results.multiHandLandmarks) {
+          //骨格を描画 drawConnectorsはdrawing_utilsのモジュール 関節の値を渡すとその点を結んで線を書いてくれる
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS,{color: '#00FF00', lineWidth: 2});
+          //関節を描画　drawConnectorsはdrawing_utilsのモジュール 関節の値を渡すとその点を描画してくれる
+          drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 1,radius:2});  
+          
+          cvFunction(landmarks,width,height);
+          drowLightSaber();
+        }
+      }
+      canvasCtx.restore();
+      
+      function cvFunction(landmarks,width,height){   
+        let points = [];
+        //手のひらや親指の付け根付近以外の関節を取得
+        for(var i=2;i<21;i++){
+          //0~1で表現されたx,yを画像のサイズに変換
+          points.push(landmarks[i].x*width);
+          points.push(landmarks[i].y*height);
+        }
+        //点の集まりをOpenCVで扱えるデータフォーマットに変換  mat→matrix       
+        let mat = cv.matFromArray(points.length/2, 1, cv.CV_32SC2, points);
+        //点の集まりにフィットする楕円を計算 
+        ell = cv.fitEllipse(mat);
+        //メモリの解放　メモリーリーク対策 OpenCVはc言語が基礎なので、都度解放処理を行う
+        mat.delete();
+        //親指[4]と人差し指[7]までの距離
+        let dx=(landmarks[7].x-landmarks[4].x)*width;
+        let dy=(landmarks[7].y-landmarks[4].y)*height;
+        let distance1 = Math.sqrt(dx*dx + dy*dy); //三平方の定理
+        //人差し指[7]から小指[19]までの距離
+        dx=(landmarks[7].x-landmarks[19].x)*width;
+        dy=(landmarks[7].y-landmarks[19].y)*height;
+        let distance2 = Math.sqrt(dx*dx + dy*dy);//三平方の定理
+        //
+        ratio=distance1/distance2;
+        //0.6:close, 1.3:sumb up 閉じる条件は少し甘めに0.9にする
+        //0.9~1.3を0~1に正規化
+        let close=0.9; //条件を厳しくしたければ値を小さく
+        let up=1.3;　//条件を厳しくしたければ値を小さく
+        ratio=(Math.max(close,Math.min(up,ratio))-close)/(up-close);//map(ratio,0.9,1.3,0,1,true);
+
+      }
+      
+      //ライトセイバーを表示
+      function drowLightSaber(){
+        //楕円の角度
+        let angle = ell.angle;
+        //ライトセイバーの向きを反転
+        if(angle<90){ angle=angle-180; } 
+        //デフォルトサイズを元画像の2倍くらいにしたい。
+        let mul = ratio*2.0*ell.size.width/beam.width;
+        //位置指定
+        canvasCtx.translate(ell.center.x, ell.center.y);
+        //角度指定
+        canvasCtx.rotate(angle * Math.PI /180.0);
+        //楕円を描画 beginPath(); → stroke();
+        canvasCtx.beginPath();
+        canvasCtx.ellipse(0, 0, // 位置
+                          ell.size.width/2.0,ell.size.height/2.0, //半径
+                          0, 0, 2 * Math.PI); //角度と表示の開始、終了
+        canvasCtx.stroke();
+        //デフォルトサイズに倍数をかける
+        canvasCtx.scale(mul, mul);
+        //drawImage(画像、X,Y,横幅,縦幅)
+        canvasCtx.drawImage(beam, -beam.width/2.0, 0, beam.width, beam.height);
+      }
+    }
+  </script>
+</head>
+
+<body>
+    <video id="input_video" style="position:absolute; display:none;"></video>
+    <img id="beam" src="https://cdn.glitch.global/6f3b4c25-8073-473c-9267-094c572d6067/beam.png?v=1657948956292" style="position:absolute;">
+    <canvas id="output_canvas" style="position:absolute;"></canvas>
+</body>
+</html>
