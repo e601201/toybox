@@ -13,7 +13,7 @@ while t <= 2 do
     ddsk_array += dodosuko + "、"
     t += 1
   else
-    no_ddsk += dodosuko
+    no_ddsk += dodosuko + "、"
   end
   dodosuko = ""
 end
