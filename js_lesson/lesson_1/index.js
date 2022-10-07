@@ -29,3 +29,8 @@ const collectButton = document.getElementsByTagName('button')[0]
 collectButton.addEventListener('click', ()=>{
   console.log(car.color)
 });
+console.log('私の名前は\'daichi\'です');
+const userName = 'daichi';
+console.log(`こんにちは
+私は${userName}です
+私は元気です`)
