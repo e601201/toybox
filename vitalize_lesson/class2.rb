@@ -20,9 +20,9 @@ end
 
 class ShoppingCart
   attr_accessor :count, :total_price
-  def initialize(count= 0, total_price= 0)
-    @count = count
-    @total_price = total_price
+  def initialize
+    @count = 0
+    @total_price = 0
   end
   def add_product(product)
     @count += 1
@@ -42,19 +42,38 @@ class ShoppingUser < User
     @user_shopping_cart = ShoppingCart.new
   end
 
-  def into_cart(product)
-    @user_shopping_cart.add_product(product)
+  def into_cart(item)
+    user_shopping_cart.add_product(item)
   end
 
   def checkout
     if user_shopping_cart.total_price <= possession_money 
-      puts "#{last_name}は#{user_shopping_cart.count}個の商品を購入し、全部で#{user_shopping_cart.total_price}円支払いました。"
-      puts "結果として残りの所持金は#{possession_money - user_shopping_cart.total_price}円です。"
-    else #足りていなかった場合
-      puts "#{last_name}はチェックアウトできませんでした。"
-      puts "なぜなら買い物の合計金額が#{user_shopping_cart.total_price}円なのに対し、所持金は#{possession_money}円しかなかったからです。"
+      success_checkout
+    else
+      failure_checkout
     end
   end
+
+  private
+
+  def success_checkout
+    puts <<~EOS
+      #{last_name}は#{user_shopping_cart.count}個の商品を購入し、全部で#{user_shopping_cart.total_price}円支払いました。
+      結果として残りの所持金は#{rusult_possession}円です。
+    EOS
+  end
+
+  def failure_checkout
+    puts <<~EOS
+      #{last_name}はチェックアウトできませんでした。
+      なぜなら買い物の合計金額が#{user_shopping_cart.total_price}円なのに対し、所持金は#{possession_money}円しかなかったからです。
+    EOS
+  end
+
+  def rusult_possession
+    possession_money - user_shopping_cart.total_price
+  end
+
 end
 
 book1 = Book.new('吾輩は猫である', 1000)
@@ -62,13 +81,14 @@ book1.author = '夏目漱石'
 book1.publisher = 'Vitalize出版'
 book1.page_count = 400
 
-
 cd1 = CD.new('SMAP', 1500)
 cd1.artist = 'スマップ'
 cd1.year = 2018
 cd1.songs = ["青い稲妻", "世界に一つだけの花", "オレンジ"]
 
-user1 = ShoppingUser.new(10000)
+money = 10000
+
+user1 = ShoppingUser.new(money)
 user1.last_name = '山田'
 user1.first_name = '花子'
 user1.gender = '女'
@@ -83,7 +103,7 @@ user1.checkout
 # 結果として残りの所持金は7500円です。
 
 #他のパラメータを変えずチャージ金額だけを100円にした場合
-user1 = ShoppingUser.new(100)
+# user1 = ShoppingUser.new(100)
 #【実行結果例2】
 # 山田はチェックアウトできませんでした。
 # なぜなら買い物の合計金額が2500円なのに対し、所持金は100円しかなかったからです。
