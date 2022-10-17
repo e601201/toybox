@@ -37,8 +37,8 @@ end
 class ShoppingUser < User
   attr_accessor :possession_money, :user_shopping_cart
 
-  def initialize(money)
-    @possession_money = money
+  def initialize(possession_money:)
+    @possession_money = possession_money
     @user_shopping_cart = ShoppingCart.new
   end
 
@@ -47,11 +47,7 @@ class ShoppingUser < User
   end
 
   def checkout
-    if user_shopping_cart.total_price <= possession_money 
-      success_checkout
-    else
-      failure_checkout
-    end
+    user_shopping_cart.total_price <= possession_money ? success_checkout : failure_checkout
   end
 
   private
@@ -86,9 +82,7 @@ cd1.artist = 'スマップ'
 cd1.year = 2018
 cd1.songs = ["青い稲妻", "世界に一つだけの花", "オレンジ"]
 
-money = 10000
-
-user1 = ShoppingUser.new(money)
+user1 = ShoppingUser.new(possession_money: 10000)
 user1.last_name = '山田'
 user1.first_name = '花子'
 user1.gender = '女'
