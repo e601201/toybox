@@ -1,0 +1,10 @@
+<html>
+  <script src="https://cdn.jsdelivr.net/npm/@ruby/3.4-wasm-wasi@2.7.1/dist/browser.script.iife.js"></script>
+  <script type="text/ruby">
+    require "js"
+    document = JS.global[:document]
+    document[:title] = "Hello, world!"
+    div = JS.global[:document].createElement("div")
+    JS.global.setTimeout(proc { puts "Hello, world!" }, 1000)
+  </script>
+</html>
